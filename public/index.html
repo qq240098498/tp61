@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>接口调试与用例回归对比平台</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>接口调试台</h1>
+      <p class="brand-sub">填好请求就能直接发出去看结果，常用的请求存成用例，下次一键回填再发一遍</p>
+    </div>
+    <span class="badge" id="health-badge">正在检查服务状态</span>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <main class="layout">
+    <div class="column">
+      <section class="panel" id="request-panel">
+        <div class="panel-head">
+          <h2>请求区</h2>
+          <span class="panel-tag">草稿</span>
+        </div>
+
+        <div class="field">
+          <label for="field-name">用例名称</label>
+          <input id="field-name" type="text" maxlength="60" autocomplete="off" />
+          <p class="field-error" data-error="name" hidden></p>
+        </div>
+
+        <div class="field-row">
+          <div class="field field-method">
+            <label for="field-method">请求方式</label>
+            <select id="field-method">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="PATCH">PATCH</option>
+              <option value="DELETE">DELETE</option>
+              <option value="HEAD">HEAD</option>
+              <option value="OPTIONS">OPTIONS</option>
+            </select>
+            <p class="field-error" data-error="method" hidden></p>
+          </div>
+          <div class="field field-url">
+            <label for="field-url">目标地址</label>
+            <input id="field-url" type="text" autocomplete="off" spellcheck="false" />
+            <p class="field-hint">以 / 开头表示本机内置示例接口，例如 /demo/echo；也可以填写 http 或 https 开头的完整地址</p>
+            <p class="field-error" data-error="url" hidden></p>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label>内置示例接口</label>
+            <span class="counter" id="demo-summary">正在读取</span>
+          </div>
+          <div class="demo-list" id="demo-list">
+            <p class="rows-empty">正在读取内置示例接口…</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label>请求头</label>
+            <button type="button" class="btn btn-ghost btn-small" id="add-header">添加请求头</button>
+          </div>
+          <div class="header-rows" id="header-rows"></div>
+          <p class="field-error" data-error="headers" hidden></p>
+        </div>
+
+        <div class="field">
+          <label for="field-body">请求内容</label>
+          <textarea id="field-body" rows="7" spellcheck="false"></textarea>
+          <p class="field-hint">请求方式为 GET 或 HEAD 时不带请求内容，其余方式会按填写的内容原样发出去</p>
+          <p class="field-error" data-error="body" hidden></p>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="send-request">发送请求</button>
+          <button type="button" class="btn" id="save-case">保存为用例</button>
+          <button type="button" class="btn" id="reset-draft">清空草稿</button>
+        </div>
+      </section>
+
+      <section class="panel" id="result-panel">
+        <div class="panel-head">
+          <h2>响应结果</h2>
+          <div class="panel-head-right">
+            <span class="counter" id="result-summary"></span>
+            <button type="button" class="btn btn-ghost btn-small" id="clear-result" hidden>清空结果</button>
+          </div>
+        </div>
+        <div id="result-body"></div>
+      </section>
+    </div>
+
+    <div class="column">
+      <section class="panel" id="case-panel">
+        <div class="panel-head">
+          <h2>用例区</h2>
+          <div class="panel-head-right">
+            <span class="counter" id="case-summary">共 0 条</span>
+            <button type="button" class="btn btn-ghost btn-small" id="refresh-cases">刷新列表</button>
+          </div>
+        </div>
+        <div class="case-list" id="case-list"></div>
+      </section>
+
+      <section class="panel" id="detail-panel">
+        <div class="panel-head">
+          <h2>用例详情</h2>
+          <button type="button" class="btn btn-ghost btn-small" id="close-detail" hidden>收起</button>
+        </div>
+        <div class="detail" id="case-detail">
+          <p class="empty-sub">在用例列表点「详情」，这里显示该用例保存下来的目标地址、请求头与请求内容。</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

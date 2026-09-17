@@ -1,0 +1,15 @@
+{
+  "name": "tp61-api-workbench",
+  "version": "1.0.0",
+  "private": true,
+  "description": "接口调试与用例回归对比平台（种子版本）",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

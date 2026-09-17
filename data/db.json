@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "id": "case-1001",
+      "name": "回声接口连通性检查",
+      "method": "GET",
+      "url": "/demo/echo?from=workbench",
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": "",
+      "createdAt": "2026-09-17T01:20:00.000Z",
+      "updatedAt": "2026-09-17T01:20:00.000Z"
+    },
+    {
+      "id": "case-1002",
+      "name": "回声接口请求内容回显",
+      "method": "POST",
+      "url": "/demo/echo",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": "{\n  \"sku\": \"SKU-1001\",\n  \"count\": 2\n}",
+      "createdAt": "2026-09-17T01:45:00.000Z",
+      "updatedAt": "2026-09-17T01:45:00.000Z"
+    },
+    {
+      "id": "case-1003",
+      "name": "列表接口分页取值",
+      "method": "GET",
+      "url": "/demo/items?page=2&size=2",
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": "",
+      "createdAt": "2026-09-17T02:10:00.000Z",
+      "updatedAt": "2026-09-17T02:10:00.000Z"
+    },
+    {
+      "id": "case-1004",
+      "name": "报错接口状态码核对",
+      "method": "GET",
+      "url": "/demo/status?code=500",
+      "headers": [
+        {
+          "key": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": "",
+      "createdAt": "2026-09-17T02:30:00.000Z",
+      "updatedAt": "2026-09-17T02:30:00.000Z"
+    }
+  ]
+}
