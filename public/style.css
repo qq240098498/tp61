@@ -814,6 +814,166 @@ input.invalid,
   word-break: break-all;
 }
 
+/* ---------- 按数据行执行（参数区） ---------- */
+
+.placeholder-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 32px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: #fafbfd;
+}
+
+.placeholder-box .text-note {
+  margin: 0;
+}
+
+.ph-chip {
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+}
+
+.batch-preview {
+  margin-top: 14px;
+}
+
+.batch-preview:empty {
+  display: none;
+}
+
+.batch-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.chip-ok {
+  border-color: #b6dcc3;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.batch-header-errors {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.batch-block-bad {
+  border: 1px solid #f0c2bc;
+  border-left: 4px solid var(--danger);
+  background: var(--danger-soft);
+}
+
+.batch-block-warn {
+  border: 1px solid #f2d3a3;
+  border-left: 4px solid #d99a18;
+  background: #fdf8ee;
+}
+
+.batch-block-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.batch-error-line {
+  margin: 3px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.batch-warn-line {
+  margin: 3px 0 0;
+  color: #8a6110;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.batch-row {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.batch-row-ok {
+  border-left: 4px solid var(--success);
+  background: #fcfffd;
+}
+
+.batch-row-bad {
+  border-left: 4px solid var(--danger);
+  background: #fffafa;
+}
+
+.batch-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.batch-row-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.batch-row-state {
+  font-size: 12px;
+}
+
+.state-ok {
+  color: var(--success);
+}
+
+.state-bad {
+  color: var(--danger);
+}
+
+.state-running {
+  color: var(--accent);
+}
+
+.batch-request {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fbfcfe;
+}
+
+.batch-request-line {
+  margin: 2px 0;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.batch-request .result-pre {
+  max-height: 220px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.batch-request .text-note {
+  margin-top: 6px;
+}
+
 /* ---------- 窄屏 ---------- */
 
 @media (max-width: 1080px) {

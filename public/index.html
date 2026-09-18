@@ -119,9 +119,47 @@
           <p class="empty-sub">在用例列表点「详情」，这里显示该用例保存下来的目标地址、请求头与请求内容。</p>
         </div>
       </section>
+
+      <section class="panel" id="batch-panel">
+        <div class="panel-head">
+          <h2>按数据行执行</h2>
+          <span class="panel-tag">参数区</span>
+        </div>
+
+        <div class="field">
+          <label for="batch-case">选择用例</label>
+          <select id="batch-case"></select>
+          <p class="field-hint">先挑一条已保存的用例，并在它的地址、请求头或请求内容里写好 <code>{{占位名}}</code>；粘贴带表头的表格后，每一行都会把占位名替换成本行取值，再各发一次。</p>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label>这条用例里的占位位置</label>
+          </div>
+          <div class="placeholder-box" id="batch-placeholders"></div>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="batch-data">表格数据（第一行为表头）</label>
+            <button type="button" class="btn btn-ghost btn-small" id="batch-sample">按占位位置填入示例</button>
+          </div>
+          <textarea id="batch-data" rows="6" spellcheck="false" placeholder="把 Excel / WPS 里带表头的表格直接粘贴到这里，也支持逗号分列的 CSV"></textarea>
+          <p class="field-hint">表头里的名字要和上面的占位位置对应；生成预演后会逐行列出真正要发出去的内容，确认没问题再按行发送。</p>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="batch-preview">生成预演</button>
+          <button type="button" class="btn" id="batch-run" disabled>按行发送</button>
+          <button type="button" class="btn" id="batch-clear">清空</button>
+        </div>
+
+        <div class="batch-preview" id="batch-preview-box"></div>
+      </section>
     </div>
   </main>
 
+  <script src="./batch-core.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

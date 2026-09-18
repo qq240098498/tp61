@@ -49,6 +49,29 @@ function seedData() {
         createdAt: '2026-09-17T02:30:00.000Z',
         updatedAt: '2026-09-17T02:30:00.000Z',
       },
+      {
+        id: 'case-1005',
+        name: '列表接口分页批量取值（模板）',
+        method: 'GET',
+        url: '/demo/items?page={{page}}&size={{size}}',
+        headers: [{ key: 'Accept', value: 'application/json' }],
+        body: '',
+        createdAt: '2026-09-17T03:00:00.000Z',
+        updatedAt: '2026-09-17T03:00:00.000Z',
+      },
+      {
+        id: 'case-1006',
+        name: '回声接口按行回显请求内容（模板）',
+        method: 'POST',
+        url: '/demo/echo',
+        headers: [
+          { key: 'Content-Type', value: 'application/json' },
+          { key: 'X-Trace', value: 'trace-{{traceId}}' },
+        ],
+        body: '{\n  "sku": "{{sku}}",\n  "channel": "{{channel}}"\n}',
+        createdAt: '2026-09-17T03:20:00.000Z',
+        updatedAt: '2026-09-17T03:20:00.000Z',
+      },
     ],
   };
 }

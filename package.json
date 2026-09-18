@@ -4,7 +4,8 @@
   "private": true,
   "description": "接口调试与用例回归对比平台（种子版本）",
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "test": "node test/batch-core.test.js"
   },
   "engines": {
     "node": ">=18"
