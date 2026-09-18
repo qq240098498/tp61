@@ -122,6 +122,41 @@
     </div>
   </main>
 
+  <section class="panel batch-panel" id="batch-panel">
+    <div class="panel-head">
+      <h2>按数据行执行</h2>
+      <span class="panel-tag">占位替换 · 逐行发送</span>
+    </div>
+
+    <div class="batch-head">
+      <div class="field batch-case-field">
+        <label for="batch-case">选择用例</label>
+        <select id="batch-case"></select>
+        <p class="field-hint" id="batch-placeholder-hint">正在读取用例…</p>
+      </div>
+      <div class="batch-case-meta" id="batch-case-meta"></div>
+    </div>
+
+    <div class="field">
+      <div class="field-head">
+        <label for="batch-table">表格数据（带表头，支持直接从 Excel / WPS / 表格软件复制）</label>
+        <button type="button" class="btn btn-ghost btn-small" id="batch-sample">填入示例数据</button>
+      </div>
+      <textarea id="batch-table" rows="6" spellcheck="false"
+        placeholder="sku&#10;SKU-2001&#10;SKU-2002"></textarea>
+      <p class="field-hint">第一行为表头，表头名字对应用例里 {{占位名}} 的名字；随后每一行数据对应一次请求。单元格为空、列数对不上等问题会在预演里逐格标出，不影响其余行执行。</p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-primary" id="batch-preview">预演</button>
+      <button type="button" class="btn" id="batch-run" disabled>按有效行执行（0 行）</button>
+      <button type="button" class="btn" id="batch-clear">清空</button>
+    </div>
+
+    <div class="batch-preview" id="batch-preview-area"></div>
+  </section>
+
+  <script src="./batch.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

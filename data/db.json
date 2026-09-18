@@ -59,6 +59,25 @@
       "body": "",
       "createdAt": "2026-09-17T02:30:00.000Z",
       "updatedAt": "2026-09-17T02:30:00.000Z"
+    },
+    {
+      "id": "case-1005",
+      "name": "回声接口按行替换入参",
+      "method": "POST",
+      "url": "/demo/echo?source={{source}}",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "X-Trace-Tag",
+          "value": "trace-{{traceId}}"
+        }
+      ],
+      "body": "{\n  \"sku\": \"{{sku}}\",\n  \"count\": {{count}}\n}",
+      "createdAt": "2026-09-18T03:05:00.000Z",
+      "updatedAt": "2026-09-18T03:05:00.000Z"
     }
   ]
 }

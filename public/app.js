@@ -10,6 +10,12 @@
     busy: false,
     result: null,
     resultView: 'structured',
+    // 按数据行执行：最近一次预演计划、逐行执行结果与执行中标记
+    batch: {
+      plan: null,
+      results: {},
+      running: false,
+    },
   };
 
   const dom = {
@@ -34,6 +40,16 @@
     refreshCases: document.getElementById('refresh-cases'),
     caseDetail: document.getElementById('case-detail'),
     closeDetail: document.getElementById('close-detail'),
+    batchPanel: document.getElementById('batch-panel'),
+    batchCase: document.getElementById('batch-case'),
+    batchPlaceholderHint: document.getElementById('batch-placeholder-hint'),
+    batchCaseMeta: document.getElementById('batch-case-meta'),
+    batchTable: document.getElementById('batch-table'),
+    batchSample: document.getElementById('batch-sample'),
+    batchPreview: document.getElementById('batch-preview'),
+    batchRun: document.getElementById('batch-run'),
+    batchClear: document.getElementById('batch-clear'),
+    batchPreviewArea: document.getElementById('batch-preview-area'),
   };
 
   const emptyDetailHint = '在用例列表点「详情」，这里显示该用例保存下来的目标地址、请求头与请求内容。';
@@ -85,6 +101,12 @@
     dom.saveCase.disabled = busy;
     dom.resetDraft.disabled = busy;
     dom.refreshCases.disabled = busy;
+    dom.batchCase.disabled = busy || state.batch.running;
+    dom.batchTable.disabled = busy || state.batch.running;
+    dom.batchPreview.disabled = busy;
+    dom.batchRun.disabled = busy || state.batch.running;
+    dom.batchSample.disabled = busy;
+    dom.batchClear.disabled = busy;
     dom.sendRequest.textContent = busy && activeAction === 'send' ? '发送中…' : '发送请求';
     dom.saveCase.textContent = busy && activeAction === 'save' ? '正在保存…' : '保存为用例';
   }
@@ -579,6 +601,13 @@
     state.cases.forEach((item) => {
       dom.caseList.appendChild(buildCaseRow(item));
     });
+
+    renderBatchCaseOptions();
+    renderBatchCaseHint();
+    // 用例被删除后，预演计划如果指向的用例已经不存在，就一并作废
+    if (state.batch.plan && !state.cases.some((item) => item.id === state.batch.plan.caseId)) {
+      clearBatchPlan();
+    }
   }
 
   function buildEmptyBlock(title, subtitle) {
@@ -653,6 +682,14 @@
       openDetail(item.id);
     });
 
+    const batchButton = document.createElement('button');
+    batchButton.type = 'button';
+    batchButton.className = 'btn btn-small';
+    batchButton.textContent = '按行执行';
+    batchButton.addEventListener('click', () => {
+      jumpToBatch(item);
+    });
+
     const deleteButton = document.createElement('button');
     deleteButton.type = 'button';
     deleteButton.className = 'btn btn-small btn-danger';
@@ -661,14 +698,14 @@
       removeCase(item);
     });
 
-    actions.append(fillButton, viewButton, deleteButton);
+    actions.append(fillButton, viewButton, batchButton, deleteButton);
     row.append(main, actions);
     return row;
   }
 
   // 回填：把用例保存下来的内容写回请求区，可以直接点发送请求重发一次
   function applyCase(item) {
-    if (state.busy) return;
+    if (state.busy || state.batch.running) return;
     fillDraft(item);
     state.selectedId = item.id;
     renderCases();
@@ -677,7 +714,7 @@
   }
 
   async function openDetail(id) {
-    if (state.busy) return;
+    if (state.busy || state.batch.running) return;
     try {
       const item = await request(`/api/cases/${encodeURIComponent(id)}`);
       state.selectedId = item.id;
@@ -792,7 +829,7 @@
   }
 
   async function removeCase(item) {
-    if (state.busy) return;
+    if (state.busy || state.batch.running) return;
     const confirmed = window.confirm(`确认删除用例「${item.name}」？删除后无法恢复。`);
     if (!confirmed) return;
 
@@ -807,6 +844,373 @@
       showNotice(err.message, 'error');
     } finally {
       setBusy(false);
+    }
+  }
+
+  // ---------------- 按数据行执行 ----------------
+
+  // 占位扫描、表格解析、逐行校验与替换的纯逻辑在 batch.js，浏览器与 Node 自测共用一份
+  const { scanPlaceholders, buildBatchPlan } = window.BatchCore;
+
+  function getSelectedBatchCase() {
+    return state.cases.find((item) => item.id === dom.batchCase.value) || null;
+  }
+
+  function renderBatchCaseOptions() {
+    const current = dom.batchCase.value;
+    dom.batchCase.textContent = '';
+    if (!state.cases.length) {
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = '还没有可用用例，请先在请求区保存';
+      dom.batchCase.appendChild(option);
+      dom.batchRun.disabled = true;
+      return;
+    }
+    state.cases.forEach((item) => {
+      const option = document.createElement('option');
+      option.value = item.id;
+      option.textContent = `${item.method} ${item.name}`;
+      dom.batchCase.appendChild(option);
+    });
+    if (current && state.cases.some((item) => item.id === current)) {
+      dom.batchCase.value = current;
+    }
+  }
+
+  function renderBatchCaseHint() {
+    const item = getSelectedBatchCase();
+    dom.batchCaseMeta.textContent = '';
+    if (!item) {
+      dom.batchPlaceholderHint.textContent = '保存至少一条用例后，才能按数据行执行';
+      return;
+    }
+    const names = scanPlaceholders(item);
+    if (!names.length) {
+      dom.batchPlaceholderHint.textContent = '这条用例里还没有占位：可在目标地址、请求头取值或请求内容里写成 {{占位名}}，表头里的名字要与它一致';
+    } else {
+      dom.batchPlaceholderHint.textContent = `这条用例里共有 ${names.length} 个占位：${names.map((name) => `{{${name}}}`).join('、')}`;
+    }
+    const meta = document.createElement('span');
+    meta.className = 'batch-meta-text';
+    meta.textContent = `${item.method} ${item.url}`;
+    dom.batchCaseMeta.appendChild(meta);
+  }
+
+  function clearBatchPlan() {
+    state.batch.plan = null;
+    state.batch.results = {};
+    dom.batchPreviewArea.hidden = true;
+    dom.batchPreviewArea.textContent = '';
+    dom.batchRun.disabled = true;
+    dom.batchRun.textContent = '按有效行执行（0 行）';
+  }
+
+  function previewBatch() {
+    if (state.batch.running) return;
+    const item = getSelectedBatchCase();
+    if (!item) {
+      showNotice('请先选择一条用例', 'error');
+      return;
+    }
+    if (!scanPlaceholders(item).length) {
+      showNotice('这条用例里还没有占位，请先在地址、请求头取值或请求内容里写 {{占位名}}', 'error');
+      return;
+    }
+    state.batch.plan = buildBatchPlan(item, dom.batchTable.value);
+    state.batch.plan.caseId = item.id;
+    state.batch.results = {};
+    renderBatchPlan();
+  }
+
+  function renderBatchPlan() {
+    const plan = state.batch.plan;
+    const area = dom.batchPreviewArea;
+    area.hidden = false;
+    area.textContent = '';
+
+    if (!plan) {
+      area.appendChild(buildTextNote('粘贴表格后点「预演」，这里会列出每一行替换后实际发出的内容'));
+      return;
+    }
+    if (plan.fatal) {
+      dom.batchRun.disabled = true;
+      dom.batchRun.textContent = '按有效行执行（0 行）';
+      area.appendChild(buildFailurePanel('无法预演', plan.fatal, ''));
+      return;
+    }
+
+    // 汇总：总共几行、有效几行、无效几行、表头有哪些问题
+    const summary = document.createElement('div');
+    summary.className = 'batch-summary';
+    summary.appendChild(buildChip(`数据行 ${plan.rows.length} 行`));
+    summary.appendChild(buildChip(`可执行 ${plan.validCount} 行`, plan.validCount ? 'chip-ok' : ''));
+    summary.appendChild(buildChip(`不成立 ${plan.invalidCount} 行`, plan.invalidCount ? 'chip-bad' : ''));
+    if (plan.ignoredTail) {
+      summary.appendChild(buildChip(`超出上限未参与 ${plan.ignoredTail} 行`, 'chip-bad'));
+    }
+    area.appendChild(summary);
+
+    const headerProblems = plan.headerProblems.map((problem) => {
+      const line = document.createElement('li');
+      line.textContent = problem.message;
+      return line;
+    });
+    plan.missingPlaceholders.forEach((name) => {
+      const line = document.createElement('li');
+      line.textContent = `用例缺少表头列：占位「${name}」在表格里找不到同名表头，所有数据行都无法补全这个位置`;
+      headerProblems.push(line);
+    });
+    if (headerProblems.length) {
+      const block = document.createElement('div');
+      block.className = 'batch-header-problems';
+      const title = document.createElement('p');
+      title.className = 'batch-problem-title';
+      title.textContent = `表头本身存在 ${headerProblems.length} 处问题（表头位于粘贴内容第 ${plan.headerLineNo} 行）：`;
+      const list = document.createElement('ul');
+      headerProblems.forEach((node) => list.appendChild(node));
+      block.append(title, list);
+      area.appendChild(block);
+    }
+
+    if (!plan.rows.length) {
+      area.appendChild(buildTextNote('只有表头、没有数据行：在表头下面每粘贴一行数据，就会对应执行一次'));
+    }
+
+    const list = document.createElement('div');
+    list.className = 'batch-rows';
+    plan.rows.forEach((row) => list.appendChild(buildBatchRowCard(row)));
+    area.appendChild(list);
+
+    dom.batchRun.disabled = plan.validCount === 0 || state.batch.running;
+    dom.batchRun.textContent = `按有效行执行（${plan.validCount} 行）`;
+  }
+
+  function buildBatchRowCard(row) {
+    const card = document.createElement('div');
+    card.className = row.valid ? 'batch-row batch-row-ok' : 'batch-row batch-row-bad';
+    card.dataset.lineNo = String(row.lineNo);
+
+    const head = document.createElement('div');
+    head.className = 'batch-row-head';
+    const title = document.createElement('span');
+    title.className = 'batch-row-title';
+    title.textContent = `粘贴内容第 ${row.lineNo} 行`;
+    const status = document.createElement('span');
+    status.className = row.valid ? 'batch-row-status status-ok-text' : 'batch-row-status status-bad-text';
+    status.textContent = row.valid ? '成立，可执行' : '不成立，跳过';
+    head.append(title, status);
+    card.appendChild(head);
+
+    if (row.problems.length) {
+      const problemBox = document.createElement('ul');
+      problemBox.className = 'batch-row-problems';
+      row.problems.forEach((problem) => {
+        const li = document.createElement('li');
+        li.textContent = problem.col >= 0
+          ? `第 ${problem.col + 1} 列：${problem.message}`
+          : problem.message;
+        problemBox.appendChild(li);
+      });
+      card.appendChild(problemBox);
+    }
+
+    if (row.valid && row.draft) {
+      card.appendChild(buildDraftDetails(row.draft));
+    }
+
+    const resultSlot = document.createElement('div');
+    resultSlot.className = 'batch-row-result';
+    resultSlot.dataset.slot = String(row.lineNo);
+    card.appendChild(resultSlot);
+    return card;
+  }
+
+  // 预演里折叠展示替换后真正会发出去的内容
+  function buildDraftDetails(draft) {
+    const details = document.createElement('details');
+    details.className = 'batch-draft';
+    const summary = document.createElement('summary');
+    summary.textContent = '替换后实际发出的内容';
+    details.appendChild(summary);
+
+    const urlLine = document.createElement('p');
+    urlLine.className = 'batch-draft-url';
+    urlLine.textContent = `${draft.method} ${draft.url}`;
+    details.appendChild(urlLine);
+
+    if (draft.headers.length) {
+      const headerTitle = document.createElement('p');
+      headerTitle.className = 'batch-draft-label';
+      headerTitle.textContent = '请求头';
+      details.appendChild(headerTitle);
+      draft.headers.forEach((row) => {
+        const line = document.createElement('p');
+        line.className = 'batch-draft-line';
+        line.textContent = `${row.key}: ${row.value}`;
+        details.appendChild(line);
+      });
+    }
+
+    const bodyTitle = document.createElement('p');
+    bodyTitle.className = 'batch-draft-label';
+    bodyTitle.textContent = '请求内容';
+    details.appendChild(bodyTitle);
+    const pre = document.createElement('pre');
+    pre.className = 'result-pre';
+    pre.textContent = draft.body || '（无请求内容）';
+    details.appendChild(pre);
+    return details;
+  }
+
+  function setBatchRunning(running) {
+    state.batch.running = running;
+    dom.batchCase.disabled = running;
+    dom.batchTable.disabled = running;
+    dom.batchPreview.disabled = running;
+    dom.batchClear.disabled = running;
+    dom.batchSample.disabled = running;
+    // 逐行执行期间，主请求区与列表操作也一并锁住，避免两条发送链路交叉
+    dom.sendRequest.disabled = running;
+    dom.saveCase.disabled = running;
+    dom.resetDraft.disabled = running;
+    dom.refreshCases.disabled = running;
+    dom.batchRun.disabled = running || !state.batch.plan || state.batch.plan.validCount === 0;
+  }
+
+  async function runBatch() {
+    const plan = state.batch.plan;
+    if (!plan || state.batch.running) return;
+    const validRows = plan.rows.filter((row) => row.valid);
+    if (!validRows.length) {
+      showNotice('没有可执行的数据行，请先按预演提示修正', 'error');
+      return;
+    }
+
+    setBatchRunning(true);
+    state.batch.results = {};
+    renderBatchPlan();
+
+    let transportFailed = 0;
+    let statusBad = 0;
+    let done = 0;
+    for (const row of validRows) {
+      done += 1;
+      markRowProgress(row.lineNo, `发送中（有效行第 ${done}/${validRows.length} 行）…`);
+      dom.batchRun.textContent = `正在执行 ${done}/${validRows.length}…`;
+      try {
+        const result = await request('/api/send', { method: 'POST', body: row.draft });
+        state.batch.results[row.lineNo] = { ok: true, result };
+        if (!result.ok || result.status >= 400) {
+          if (!result.ok) transportFailed += 1;
+          else statusBad += 1;
+        }
+      } catch (err) {
+        state.batch.results[row.lineNo] = { ok: false, error: err.message };
+        transportFailed += 1;
+      }
+      renderRowResult(row.lineNo);
+    }
+
+    setBatchRunning(false);
+    dom.batchRun.textContent = `按有效行执行（${plan.validCount} 行）`;
+    const skipped = plan.invalidCount;
+    showNotice(
+      `执行完成：成功 ${done - transportFailed - statusBad} 行，失败状态 ${statusBad} 行，请求未完成 ${transportFailed} 行` +
+        (skipped ? `，另有 ${skipped} 行不成立已跳过` : ''),
+      transportFailed || statusBad ? 'error' : 'success'
+    );
+  }
+
+  function markRowProgress(lineNo, text) {
+    const slot = document.querySelector(`.batch-row-result[data-slot="${lineNo}"]`);
+    if (!slot) return;
+    slot.textContent = '';
+    slot.appendChild(buildChip(text, 'chip-pending'));
+  }
+
+  function renderRowResult(lineNo) {
+    const slot = document.querySelector(`.batch-row-result[data-slot="${lineNo}"]`);
+    if (!slot) return;
+    const entry = state.batch.results[lineNo];
+    slot.textContent = '';
+    if (!entry) return;
+
+    const head = document.createElement('div');
+    head.className = 'result-head';
+
+    if (!entry.ok) {
+      head.appendChild(buildStatusBadge(0, '未发出'));
+      slot.appendChild(head);
+      slot.appendChild(buildFailurePanel('这一行没有发出去', entry.error, ''));
+      return;
+    }
+
+    const result = entry.result;
+    if (result.ok) {
+      head.appendChild(buildStatusBadge(result.status, result.statusText));
+      head.appendChild(buildChip(`耗时 ${formatDuration(result.timeMs)}`));
+      head.appendChild(buildChip(`内容 ${formatBytes(result.size)}`));
+    } else {
+      head.appendChild(buildStatusBadge(0, '未完成'));
+      head.appendChild(buildChip(`已等待 ${formatDuration(result.timeMs)}`));
+    }
+    slot.appendChild(head);
+
+    if (!result.ok) {
+      slot.appendChild(buildFailurePanel('请求没有完成', result.failure.reason, result.failure.detail));
+      return;
+    }
+
+    if (result.body) {
+      const details = document.createElement('details');
+      details.className = 'batch-draft';
+      const summary = document.createElement('summary');
+      summary.textContent = '响应内容';
+      details.appendChild(summary);
+      const pre = document.createElement('pre');
+      pre.className = 'result-pre';
+      pre.textContent = result.body;
+      details.appendChild(pre);
+      slot.appendChild(details);
+    }
+  }
+
+  // 依据所选用例的占位生成一份两行的示例数据，方便第一次使用时照着改
+  function fillBatchSample() {
+    const item = getSelectedBatchCase();
+    if (!item) return;
+    let names = scanPlaceholders(item);
+    if (!names.length) {
+      showNotice('这条用例里还没有占位，请先在地址、请求头取值或请求内容里写 {{占位名}}', 'error');
+      return;
+    }
+    const valueFor = (name, suffix) => {
+      const key = name.toLowerCase();
+      if (key.includes('page')) return String(1 + suffix);
+      if (key.includes('size') || key.includes('count') || key.includes('num')) return String(2 + suffix);
+      if (key.includes('code') || key.includes('status')) return String(200 + suffix);
+      if (key.includes('ms') || key.includes('time') || key.includes('wait')) return String(200 + suffix * 100);
+      if (key.includes('sku') || key.includes('id')) return `DEMO-${1001 + suffix}`;
+      return `${name}${suffix + 1}`;
+    };
+    const lines = [names.join('\t')];
+    lines.push(names.map((name) => valueFor(name, 0)).join('\t'));
+    lines.push(names.map((name) => valueFor(name, 1)).join('\t'));
+    dom.batchTable.value = lines.join('\n');
+    clearBatchPlan();
+    showNotice('已按用例的占位填入两行示例数据，可直接点「预演」', 'info');
+  }
+
+  // 在用例列表点「按行执行」：切到该用例并把参数区滚动到可视区域
+  function jumpToBatch(item) {
+    if (state.busy || state.batch.running) return;
+    dom.batchCase.value = item.id;
+    renderBatchCaseHint();
+    clearBatchPlan();
+    dom.batchPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!scanPlaceholders(item).length) {
+      showNotice(`用例「${item.name}」里还没有占位，请先在用例的地址、请求头或请求内容里写 {{占位名}}`, 'error');
     }
   }
 
@@ -970,6 +1374,29 @@
       renderCases();
       renderEmptyDetail();
     });
+
+    // ---------------- 按数据行执行 ----------------
+
+    dom.batchCase.addEventListener('change', () => {
+      renderBatchCaseHint();
+      clearBatchPlan();
+    });
+
+    dom.batchTable.addEventListener('input', () => {
+      if (state.batch.running) return;
+      // 内容变了就先收起旧预演，避免看到的还是上一次的行与结果
+      if (state.batch.plan) clearBatchPlan();
+    });
+
+    dom.batchPreview.addEventListener('click', previewBatch);
+    dom.batchRun.addEventListener('click', runBatch);
+    dom.batchSample.addEventListener('click', fillBatchSample);
+    dom.batchClear.addEventListener('click', () => {
+      if (state.batch.running) return;
+      dom.batchTable.value = '';
+      clearBatchPlan();
+      showNotice('表格数据与预演结果已清空', 'info');
+    });
   }
 
   async function init() {
@@ -978,6 +1405,11 @@
     renderEmptyDetail();
     renderEmptyResult();
     renderCases();
+    renderBatchCaseOptions();
+    renderBatchCaseHint();
+    dom.batchPreviewArea.appendChild(
+      buildTextNote('粘贴表格后点「预演」，这里会列出每一行替换后实际发出的内容，以及不成立的行具体卡在哪一行哪一列')
+    );
     await checkHealth();
     await loadDemos();
     try {

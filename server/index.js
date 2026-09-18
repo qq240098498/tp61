@@ -5,7 +5,7 @@ const target = require('./target');
 const demos = require('./demo-routes');
 
 const app = express();
-const PORT = process.env.PORT || 5061;
+const PORT = process.env.PORT || 8081;
 
 // 请求内容按类型分别解析：结构化内容、纯文本与表单内容都能被内置回声接口如实回显
 app.use(express.json({ limit: '1mb' }));
